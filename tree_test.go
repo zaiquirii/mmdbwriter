@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmind/mmdbwriter/inserter"
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/inserter"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 type testInsert struct {

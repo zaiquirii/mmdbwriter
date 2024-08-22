@@ -5,7 +5,7 @@ package inserter
 import (
 	"fmt"
 
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 // Func is a function that returns the data type to be inserted into an

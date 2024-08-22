@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/maxmind/mmdbwriter"
+	"github.com/zaiquirii/mmdbwriter"
 )
 
 func main() {

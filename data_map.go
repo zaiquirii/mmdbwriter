@@ -1,6 +1,6 @@
 package mmdbwriter
 
-import "github.com/maxmind/mmdbwriter/mmdbtype"
+import "github.com/zaiquirii/mmdbwriter/mmdbtype"
 
 type dataMapKey string
 

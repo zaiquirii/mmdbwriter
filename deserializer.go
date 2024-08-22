@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 // Potentially, it would make sense to add this to mmdbtypes and make

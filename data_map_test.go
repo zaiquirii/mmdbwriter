@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 func TestDataMap(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 type recordType byte

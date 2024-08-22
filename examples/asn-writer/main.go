@@ -10,8 +10,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/maxmind/mmdbwriter"
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 func main() {

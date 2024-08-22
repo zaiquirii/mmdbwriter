@@ -13,8 +13,8 @@ import (
 	"github.com/oschwald/maxminddb-golang"
 	"go4.org/netipx"
 
-	"github.com/maxmind/mmdbwriter/inserter"
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/inserter"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 var (

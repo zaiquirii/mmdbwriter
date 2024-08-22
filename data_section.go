@@ -3,7 +3,7 @@ package mmdbwriter
 import (
 	"bytes"
 
-	"github.com/maxmind/mmdbwriter/mmdbtype"
+	"github.com/zaiquirii/mmdbwriter/mmdbtype"
 )
 
 type writtenType struct {

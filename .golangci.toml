@@ -201,7 +201,7 @@ forbid = [
 ]
 
 [linters-settings.gci]
-sections = ["standard", "default", "prefix(github.com/maxmind/mmdbwriter)"]
+sections = ["standard", "default", "prefix(github.com/zaiquirii/mmdbwriter)"]
 
 [linters-settings.gocritic]
 enable-all = true
@@ -631,7 +631,7 @@ text = 'SA5008: unknown JSON option "intern"'
 linters = [
     "wrapcheck",
 ]
-text = "github.com/maxmind/mmdbwriter"
+text = "github.com/zaiquirii/mmdbwriter"
 
 [[issues.exclude-rules]]
 linters = [

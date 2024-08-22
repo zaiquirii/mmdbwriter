@@ -2,8 +2,6 @@ module github.com/zaiquirii/mmdbwriter
 
 go 1.21
 
-toolchain go1.22.3
-
 require (
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/stretchr/testify v1.9.0
