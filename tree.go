@@ -92,6 +92,8 @@ type Options struct {
 	KeyGenerator KeyGenerator
 }
 
+type nodeId int
+
 // Tree represents an MaxMind DB search tree.
 type Tree struct {
 	buildEpoch              int64
@@ -102,11 +104,13 @@ type Tree struct {
 	ipVersion               int
 	languages               []string
 	recordSize              int
-	root                    *node
 	treeDepth               int
 	// This is set when the tree is finalized
 	nodeCount       int
 	inserterFuncGen inserter.FuncGenerator
+
+	root  nodeId
+	nodes []node
 }
 
 // New creates a new Tree.
@@ -118,9 +122,11 @@ func New(opts Options) (*Tree, error) {
 		disableMetadataPointers: opts.DisableMetadataPointers,
 		ipVersion:               6,
 		recordSize:              28,
-		root:                    &node{},
+		root:                    0,
 		inserterFuncGen:         inserter.ReplaceWith,
+		nodes:                   make([]node, 0, 0),
 	}
+	tree.root = tree.addNode(node{})
 
 	if opts.BuildEpoch != 0 {
 		tree.buildEpoch = opts.BuildEpoch
@@ -266,14 +272,26 @@ func (t *Tree) InsertFunc(
 	network *net.IPNet,
 	inserterFunc inserter.Func,
 ) error {
-	return t.insert(network, recordTypeData, inserterFunc, nil)
+	return t.insert(network, recordTypeData, inserterFunc, NoNode)
+}
+
+//func (t *Tree) nextNode() nodeId {
+//	id := nodeId(len(t.nodes))
+//	t.nodes = append(t.nodes, node{})
+//	return id
+//}
+
+func (t *Tree) addNode(n node) nodeId {
+	id := nodeId(len(t.nodes))
+	t.nodes = append(t.nodes, n)
+	return id
 }
 
 func (t *Tree) insert(
 	network *net.IPNet,
 	recordType recordType,
 	inserterFunc inserter.Func,
-	node *node,
+	node nodeId,
 ) error {
 	// We set this to 0 so that the tree must be finalized again.
 	t.nodeCount = 0
@@ -286,7 +304,7 @@ func (t *Tree) insert(
 		prefixLen += 96
 	}
 
-	return t.root.insert(
+	return t.insertAtNode(t.root,
 		insertRecord{
 			ip:           ip,
 			prefixLen:    prefixLen,
@@ -298,6 +316,33 @@ func (t *Tree) insert(
 		},
 		0,
 	)
+}
+
+func (t *Tree) getNode(nid nodeId) *node {
+	if nid < 0 {
+		panic("invalid node ID: Basically a nil check here")
+	}
+	return &t.nodes[nid]
+}
+
+func (t *Tree) insertAtNode(nid nodeId, iRec insertRecord, currentDepth int) error {
+	newDepth := currentDepth + 1
+	n := &t.nodes[nid]
+	// Check if we are inside the network already
+	if newDepth > iRec.prefixLen {
+		// Data already exists for the network so insert into all the children.
+		// We will prune duplicate nodes when we finalize.
+		err := n.children[0].insert(iRec, newDepth, t.getNode, t.addNode)
+		if err != nil {
+			return err
+		}
+		return n.children[1].insert(iRec, newDepth, t.getNode, t.addNode)
+	}
+
+	// We haven't reached the network yet.
+	pos := bitAt(iRec.ip, currentDepth)
+	r := &n.children[pos]
+	return r.insert(iRec, newDepth, t.getNode, t.addNode)
 }
 
 // InsertRange is the same as Insert, except it will insert all subnets within
@@ -317,7 +362,7 @@ func (t *Tree) InsertRangeFunc(
 	end net.IP,
 	inserterFunc inserter.Func,
 ) error {
-	return t.insertRange(start, end, recordTypeData, inserterFunc, nil)
+	return t.insertRange(start, end, recordTypeData, inserterFunc, NoNode)
 }
 
 func (t *Tree) insertRange(
@@ -325,7 +370,7 @@ func (t *Tree) insertRange(
 	end net.IP,
 	recordType recordType,
 	inserterFunc inserter.Func,
-	node *node,
+	node nodeId,
 ) error {
 	startNetIP, ok := netipx.FromStdIP(start)
 	if !ok {
@@ -354,7 +399,7 @@ func (t *Tree) insertStringNetwork(
 	network string,
 	recordType recordType,
 	inserterFunc inserter.Func,
-	node *node,
+	node nodeId,
 ) error {
 	//nolint:forbidigo // code predates netip
 	_, ipnet, err := net.ParseCIDR(network)
@@ -377,7 +422,7 @@ func (t *Tree) insertIPv4Aliases() error {
 		return fmt.Errorf("parsing IPv4 root: %w", err)
 	}
 
-	ipv4RootNode := &node{}
+	ipv4RootNode := t.addNode(node{})
 
 	// Make ::/96, the IPv4 root, a fixed node.
 	err = t.insert(ipv4Root, recordTypeFixedNode, nil, ipv4RootNode)
@@ -402,7 +447,7 @@ func (t *Tree) insertReservedNetworks() error {
 	}
 
 	for _, network := range networks {
-		err := t.insertStringNetwork(network, recordTypeReserved, nil, nil)
+		err := t.insertStringNetwork(network, recordTypeReserved, nil, NoNode)
 		if err != nil {
 			return err
 		}
@@ -434,7 +479,7 @@ func (t *Tree) Get(ip net.IP) (*net.IPNet, mmdbtype.DataType) {
 		}
 	}
 
-	prefixLen, r := t.root.get(lookupIP, 0)
+	prefixLen, r := t.getNode(t.root).get(lookupIP, 0, t.getNode)
 
 	mask := net.CIDRMask(prefixLen, t.treeDepth)
 
@@ -451,7 +496,7 @@ func (t *Tree) Get(ip net.IP) (*net.IPNet, mmdbtype.DataType) {
 
 // finalize prepares the tree for writing. It is not threadsafe.
 func (t *Tree) finalize() {
-	t.nodeCount = t.root.finalize(0)
+	t.nodeCount = t.getNode(t.root).finalize(0, t.getNode)
 }
 
 // WriteTo writes the tree to the provided Writer.
@@ -526,11 +571,11 @@ func (t *Tree) WriteTo(w io.Writer) (int64, error) {
 
 func (t *Tree) writeNode(
 	w io.Writer,
-	n *node,
+	nid nodeId,
 	dataWriter *dataWriter,
 	recordBuf []byte,
 ) (int, int64, error) {
-	err := t.copyNode(recordBuf, n, dataWriter)
+	err := t.copyNode(recordBuf, nid, dataWriter)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -543,6 +588,7 @@ func (t *Tree) writeNode(
 		return nodesWritten, numBytes, fmt.Errorf("writing node: %w", err)
 	}
 
+	n := t.getNode(nid)
 	for i := 0; i < 2; i++ {
 		child := n.children[i]
 		if child.recordType != recordTypeNode && child.recordType != recordTypeFixedNode {
@@ -575,11 +621,12 @@ func (t *Tree) recordValue(
 	case recordTypeEmpty, recordTypeReserved:
 		return t.nodeCount, nil
 	default:
-		return r.node.nodeNum, nil
+		return t.getNode(r.node).nodeNum, nil
 	}
 }
 
-func (t *Tree) copyNode(buf []byte, n *node, dataWriter *dataWriter) error {
+func (t *Tree) copyNode(buf []byte, nid nodeId, dataWriter *dataWriter) error {
+	n := t.getNode(nid)
 	left, err := t.recordValue(n.children[0], dataWriter)
 	if err != nil {
 		return err
