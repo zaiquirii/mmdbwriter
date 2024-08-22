@@ -1,4 +1,4 @@
-module github.com/maxmind/mmdbwriter
+module github.com/zaiquirii/mmdbwriter
 
 go 1.21
 
