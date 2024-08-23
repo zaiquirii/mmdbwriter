@@ -90,6 +90,12 @@ type Options struct {
 	// SHA-256 hash from it. Although this is relatively safe, it can be
 	// resource intensive for large data structures.
 	KeyGenerator KeyGenerator
+
+	// MaxNodeCount specifies the maximum number of nodes accepted into the tree.
+	// If the maxnodecount surpassed the process will panic. This protects from
+	// some nasty pointer indirection bugs that still need to be resolved by
+	// preallocating the full nodes list
+	MaxNodeCount int
 }
 
 type nodeId int
@@ -115,6 +121,10 @@ type Tree struct {
 
 // New creates a new Tree.
 func New(opts Options) (*Tree, error) {
+	nodeCountHint := 1024
+	if opts.MaxNodeCount > 0 {
+		nodeCountHint = opts.MaxNodeCount
+	}
 	tree := &Tree{
 		buildEpoch:              time.Now().Unix(),
 		databaseType:            opts.DatabaseType,
@@ -124,7 +134,7 @@ func New(opts Options) (*Tree, error) {
 		recordSize:              28,
 		root:                    0,
 		inserterFuncGen:         inserter.ReplaceWith,
-		nodes:                   make([]node, 0, 0),
+		nodes:                   make([]node, 0, nodeCountHint),
 	}
 	tree.root = tree.addNode(node{})
 
@@ -282,6 +292,10 @@ func (t *Tree) InsertFunc(
 //}
 
 func (t *Tree) addNode(n node) nodeId {
+	c := cap(t.nodes)
+	if len(t.nodes) >= c {
+		panic("node slice is full, use a larger number ")
+	}
 	id := nodeId(len(t.nodes))
 	t.nodes = append(t.nodes, n)
 	return id
