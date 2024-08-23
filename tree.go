@@ -294,6 +294,7 @@ func (t *Tree) InsertFunc(
 func (t *Tree) addNode(n node) nodeId {
 	c := cap(t.nodes)
 	if len(t.nodes) >= c {
+		fmt.Printf("node slice is full, use a larger number capacity: %d, len: %d\n", c, len(t.nodes))
 		panic("node slice is full, use a larger number ")
 	}
 	id := nodeId(len(t.nodes))
